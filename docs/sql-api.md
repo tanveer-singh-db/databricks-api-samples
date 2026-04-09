@@ -2,6 +2,8 @@
 
 Execute SQL queries against Databricks SQL warehouses with automatic pagination.
 
+> **Official docs:** [Statement Execution API](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/statementexecution) | [SQL warehouses](https://learn.microsoft.com/en-us/azure/databricks/sql/admin/sql-endpoints) | [Query execution tutorial](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/sql-execution-tutorial)
+
 ## Execute a Query (Eager)
 
 Fetches all result rows into memory. Best for small-to-medium result sets.
@@ -56,7 +58,7 @@ result = client.sql.execute_query(
 
 ## Parameterized Queries
 
-Use named parameters to prevent SQL injection:
+Use named parameters to prevent SQL injection. See [parameterized statements](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/statementexecution/executestatement#parameters).
 
 ```python
 result = client.sql.execute_query(
@@ -131,9 +133,16 @@ except QueryExecutionError as e:
 
 ## How Pagination Works
 
-Under the hood, the client uses the Databricks Statement Execution API with `INLINE` disposition and `JSON_ARRAY` format:
+Under the hood, the client uses the Databricks [Statement Execution API](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/statementexecution/executestatement) with `INLINE` disposition and `JSON_ARRAY` format:
 
 1. Sends the SQL statement with a 50-second server-side wait timeout
 2. The first response contains chunk 0 and metadata (total chunks, total rows)
-3. If `total_chunk_count > 1`, fetches remaining chunks via `get_statement_result_chunk_n()`
+3. If `total_chunk_count > 1`, fetches remaining chunks via [`getResultChunkN`](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/statementexecution/getstatementresultchunkn)
 4. `execute_query()` collects all chunks eagerly; `execute_query_lazy()` yields them one at a time
+
+## Further Reading
+
+- [Statement Execution API reference](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/statementexecution)
+- [SQL execution tutorial](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/sql-execution-tutorial)
+- [SQL warehouses overview](https://learn.microsoft.com/en-us/azure/databricks/sql/admin/sql-endpoints)
+- [Databricks SDK for Python — Statement Execution](https://databricks-sdk-py.readthedocs.io/en/latest/workspace/sql/statement_execution.html)

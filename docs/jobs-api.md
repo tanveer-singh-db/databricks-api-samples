@@ -2,7 +2,11 @@
 
 Operations for listing, triggering, and monitoring Databricks jobs.
 
+> **Official docs:** [Jobs API reference](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/jobs) | [Jobs concepts](https://learn.microsoft.com/en-us/azure/databricks/jobs) | [Manage job runs](https://learn.microsoft.com/en-us/azure/databricks/jobs/run-now)
+
 ## List Jobs
+
+Lists jobs in the workspace. See [Jobs API — List](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/jobs/list).
 
 **Python:**
 ```python
@@ -28,7 +32,7 @@ Each job is returned as a `JobInfo` with fields: `jobId`/`job_id`, `name`, `crea
 
 ## Trigger a Job
 
-Fire-and-forget — returns the `run_id` immediately without waiting.
+Fire-and-forget — returns the `run_id` immediately without waiting. See [Jobs API — Run Now](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/jobs/runnow).
 
 **Python:**
 ```python
@@ -40,9 +44,9 @@ run_id = client.jobs.trigger(job_id=123, notebook_params={"env": "prod"})
 const runId = await client.jobs.trigger(123, { notebookParams: { env: "prod" } });
 ```
 
-Supported parameter types:
-- `notebook_params` — for notebook tasks
-- `job_parameters` — job-level parameters (Jobs API v2.1+)
+Supported parameter types (see [Run Now parameters](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/jobs/runnow#request)):
+- `job_parameters` — job-level parameters ([Jobs API v2.1+](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/jobs/runnow#job_parameters), **recommended**)
+- `notebook_params` — for notebook tasks (legacy)
 - `python_params` / `python_named_params` — for Python tasks
 - `jar_params` — for JAR tasks
 - `sql_params` — for SQL tasks
@@ -50,7 +54,7 @@ Supported parameter types:
 
 ## Check Run Status
 
-Single poll — returns the current state without waiting.
+Single poll — returns the current state without waiting. See [Jobs API — Get Run](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/jobs/getrun).
 
 ```python
 status = client.jobs.get_run_status(run_id=run_id)
@@ -170,6 +174,8 @@ except JobRunError as e:
 
 ## Lifecycle States Reference
 
+See [Run lifecycle](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/jobs/getrun#RunLifeCycleState).
+
 | State | Terminal? | Description |
 |-------|-----------|-------------|
 | `PENDING` | No | Queued or waiting for resources |
@@ -178,3 +184,9 @@ except JobRunError as e:
 | `TERMINATED` | Yes | Completed (check `result_state`) |
 | `SKIPPED` | Yes | Skipped (e.g., duplicate run) |
 | `INTERNAL_ERROR` | Yes | Platform error |
+
+## Further Reading
+
+- [Create and manage Databricks jobs](https://learn.microsoft.com/en-us/azure/databricks/jobs)
+- [Jobs API 2.1 reference](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/jobs)
+- [Databricks SDK for Python — Jobs](https://databricks-sdk-py.readthedocs.io/en/latest/workspace/jobs/jobs.html)

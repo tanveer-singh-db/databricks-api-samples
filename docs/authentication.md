@@ -2,9 +2,11 @@
 
 This guide covers all supported authentication methods for connecting to a Databricks workspace.
 
+> **Official docs:** [Databricks unified authentication](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/unified-auth) | [Environment variables reference](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/unified-auth-envvars)
+
 ## Quick Start (Recommended)
 
-The client uses Databricks **unified authentication** — set environment variables and it works automatically:
+The client uses Databricks **[unified authentication](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/unified-auth)** — set environment variables and it works automatically:
 
 ```bash
 export DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
@@ -27,7 +29,7 @@ const client = new DatabricksWorkspaceClient(); // Picks up env vars automatical
 
 ### Personal Access Token (PAT)
 
-Simplest for development. Not recommended for production.
+Simplest for development. Not recommended for production. See [Azure Databricks personal access tokens](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/pat).
 
 **Python:**
 ```python
@@ -50,7 +52,7 @@ const client = new DatabricksWorkspaceClient({
 
 ### OAuth Machine-to-Machine (M2M)
 
-Recommended for production service-to-service authentication using a service principal.
+Recommended for production service-to-service authentication using a service principal. See [OAuth M2M authentication](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/oauth-m2m).
 
 **Python:**
 ```python
@@ -74,7 +76,7 @@ const client = new DatabricksWorkspaceClient({
 
 ### Azure Service Principal
 
-For Azure Databricks workspaces using Microsoft Entra ID (Azure AD) credentials.
+For Azure Databricks workspaces using Microsoft Entra ID (Azure AD) credentials. See [Azure service principal authentication](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/oauth-m2m#azure-service-principal).
 
 **Python:**
 ```python
@@ -100,7 +102,7 @@ const client = new DatabricksWorkspaceClient({
 
 ### Azure CLI
 
-Uses your Azure CLI login. Good for local development with Azure Databricks.
+Uses your Azure CLI login. Good for local development with Azure Databricks. See [Azure CLI authentication](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/azure-cli).
 
 ```bash
 az login
@@ -124,7 +126,7 @@ const client = new DatabricksWorkspaceClient({
 
 ### Azure Managed Identity
 
-For workloads running on Azure VMs, AKS, or Azure Functions.
+For workloads running on Azure VMs, AKS, or Azure Functions. See [Azure managed identity authentication](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/azure-mi).
 
 ```python
 client = DatabricksWorkspaceClient(AuthConfig(
@@ -147,7 +149,7 @@ client = DatabricksWorkspaceClient(AuthConfig(
 
 ### Databricks Config Profile
 
-Use a named profile from `~/.databrickscfg`:
+Use a named profile from `~/.databrickscfg`. See [Databricks configuration profiles](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/config-profiles).
 
 ```ini
 # ~/.databrickscfg

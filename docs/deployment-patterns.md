@@ -2,6 +2,8 @@
 
 This guide covers recommended authentication patterns for common deployment scenarios when connecting to the Databricks Workspace API.
 
+> **Official docs:** [Databricks authentication overview](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth) | [Manage service principals](https://learn.microsoft.com/en-us/azure/databricks/admin/users-groups/service-principals) | [IP access lists](https://learn.microsoft.com/en-us/azure/databricks/security/network/front-end/ip-access-list)
+
 ## Quick Reference
 
 | Scenario | Recommended Auth | Secrets Storage | Section |
@@ -59,7 +61,7 @@ graph LR
     MI -.->|Alternative: no secrets| AAD
 ```
 
-### Recommended Auth: Azure Service Principal (preferred) or Managed Identity
+### Recommended Auth: [Azure Service Principal](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/oauth-m2m) (preferred) or [Managed Identity](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/azure-mi)
 
 **Option A — Service Principal with Key Vault:**
 
@@ -103,11 +105,11 @@ client = DatabricksWorkspaceClient(AuthConfig(
 ### Best Practices
 
 - **Prefer Managed Identity** over Service Principal when running on Azure — eliminates secret rotation entirely
-- Store SP credentials in **Azure Key Vault**, injected as environment variables via App Service config or AKS secrets
-- Use a dedicated **Service Principal per application** — don't share credentials across apps
-- Grant **least-privilege workspace permissions** to the SP (e.g., CAN_MANAGE on specific jobs, not workspace admin)
+- Store SP credentials in **[Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/overview)**, injected as environment variables via App Service config or AKS secrets
+- Use a dedicated **[Service Principal](https://learn.microsoft.com/en-us/azure/databricks/admin/users-groups/service-principals) per application** — don't share credentials across apps
+- Grant **[least-privilege workspace permissions](https://learn.microsoft.com/en-us/azure/databricks/security/auth-authz/access-control/index)** to the SP (e.g., CAN_MANAGE on specific jobs, not workspace admin)
 - Token caching is handled automatically by this client (30s expiry buffer)
-- Enable **Private Link** between your Azure VNet and Databricks for network-level isolation
+- Enable **[Private Link](https://learn.microsoft.com/en-us/azure/databricks/security/network/classic/private-link-standard)** between your Azure VNet and Databricks for network-level isolation
 
 ---
 
@@ -154,7 +156,7 @@ graph LR
     FW -->|3. Outbound only| CP
 ```
 
-### Recommended Auth: OAuth M2M (Service Principal)
+### Recommended Auth: [OAuth M2M](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/oauth-m2m) (Service Principal)
 
 ```typescript
 // Node.js
@@ -176,13 +178,13 @@ client = DatabricksWorkspaceClient(AuthConfig(
 
 ### Best Practices
 
-- Use **OAuth M2M** (not PATs) — tokens are short-lived (1hr) and auto-refreshed by the client
+- Use **[OAuth M2M](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/oauth-m2m)** (not PATs) — tokens are short-lived (1hr) and auto-refreshed by the client
 - Never hardcode credentials — use an **enterprise secrets manager** (HashiCorp Vault, CyberArk, AWS Secrets Manager)
 - Ensure the firewall allows **outbound HTTPS (443)** to:
   - `*.cloud.databricks.com` (AWS) or `*.azuredatabricks.net` (Azure)
   - `login.microsoftonline.com` (Azure SP token exchange)
-- Consider **Azure Private Link** or **AWS PrivateLink** to avoid public internet traversal
-- Use **IP access lists** on the Databricks workspace to restrict API access to your on-prem egress IPs
+- Consider **[Azure Private Link](https://learn.microsoft.com/en-us/azure/databricks/security/network/classic/private-link-standard)** or **AWS PrivateLink** to avoid public internet traversal
+- Use **[IP access lists](https://learn.microsoft.com/en-us/azure/databricks/security/network/front-end/ip-access-list)** on the Databricks workspace to restrict API access to your on-prem egress IPs
 - Set `httpTimeoutSeconds` higher if crossing high-latency WAN links:
   ```typescript
   const client = new DatabricksWorkspaceClient({
@@ -284,7 +286,7 @@ const client = new DatabricksWorkspaceClient();
 
 ## 4. Databricks App → Workspace API
 
-A Databricks App (web application deployed within the Databricks platform) calling the Workspace API.
+A [Databricks App](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/) (web application deployed within the Databricks platform) calling the Workspace API.
 
 ### Network Flow
 
@@ -336,8 +338,8 @@ const client = new DatabricksWorkspaceClient();
 ### Best Practices
 
 - **Do not hardcode** any credentials in Databricks Apps — the platform provides them automatically
-- The app runs with the **identity of the user** accessing it (or the app's service principal)
-- Use **app resources** (configured in `app.yaml`) to declare which workspace resources the app needs
+- The app runs with the **identity of the user** accessing it (or the app's [service principal](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/app-run-as-service-principal))
+- Use **[app resources](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/configuration)** (configured in `app.yaml`) to declare which workspace resources the app needs
 - For apps that need a fixed service principal identity, configure the SP in the app's resource declarations
 - All traffic stays **within the Databricks control plane** — no external network hops
 
@@ -345,7 +347,7 @@ const client = new DatabricksWorkspaceClient();
 
 ## 5. Databricks Notebook → Workspace API
 
-A notebook running on a Databricks cluster calling the Workspace API to manage jobs, query metadata, or orchestrate workflows.
+A [notebook](https://learn.microsoft.com/en-us/azure/databricks/notebooks/) running on a Databricks cluster calling the Workspace API to manage jobs, query metadata, or orchestrate workflows.
 
 ### Network Flow
 
@@ -417,7 +419,7 @@ client = DatabricksWorkspaceClient(AuthConfig(
 - The notebook runs with the **identity of the user** who triggered it (interactive) or the **job owner** (scheduled)
 - For scheduled jobs that call the API, ensure the **job owner** has appropriate workspace permissions
 - Install this library on the cluster via `%pip install` or cluster-scoped init scripts
-- Be mindful of **API rate limits** when calling the workspace API in loops from notebooks
+- Be mindful of **[API rate limits](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/introduction#rate-limits)** when calling the workspace API in loops from notebooks
 
 ---
 
@@ -457,15 +459,15 @@ flowchart TD
 
 ## Security Best Practices Summary
 
-| Practice | Why |
-|----------|-----|
-| **Prefer Managed Identity / built-in auth** | Eliminates secrets entirely |
-| **Use OAuth M2M over PATs for services** | Tokens are short-lived (1hr), auto-refreshed, auditable |
-| **Store secrets in a vault** (Key Vault, HashiCorp Vault) | Never in code, env files, or repos |
-| **One service principal per application** | Blast radius isolation, independent rotation |
-| **Least-privilege permissions** | Grant only what the SP needs (CAN_MANAGE on specific jobs, not admin) |
-| **Enable IP access lists** | Restrict API access to known egress IPs |
-| **Use Private Link** where possible | Network-level isolation, no public internet |
-| **Rotate PATs on a schedule** | 7-30 day expiry for development tokens |
-| **Audit API access** | Enable Databricks audit logging to track who called what |
-| **Never commit credentials** | Add `.env`, `~/.databrickscfg` to `.gitignore` |
+| Practice | Why | Docs |
+|----------|-----|------|
+| **Prefer Managed Identity / built-in auth** | Eliminates secrets entirely | [Azure MI auth](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/azure-mi) |
+| **Use OAuth M2M over PATs for services** | Tokens are short-lived (1hr), auto-refreshed, auditable | [OAuth M2M](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/oauth-m2m) |
+| **Store secrets in a vault** (Key Vault, HashiCorp Vault) | Never in code, env files, or repos | [Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/overview) |
+| **One service principal per application** | Blast radius isolation, independent rotation | [Manage SPs](https://learn.microsoft.com/en-us/azure/databricks/admin/users-groups/service-principals) |
+| **Least-privilege permissions** | Grant only what the SP needs (CAN_MANAGE on specific jobs, not admin) | [Access control](https://learn.microsoft.com/en-us/azure/databricks/security/auth-authz/access-control/index) |
+| **Enable IP access lists** | Restrict API access to known egress IPs | [IP access lists](https://learn.microsoft.com/en-us/azure/databricks/security/network/front-end/ip-access-list) |
+| **Use Private Link** where possible | Network-level isolation, no public internet | [Private Link](https://learn.microsoft.com/en-us/azure/databricks/security/network/classic/private-link-standard) |
+| **Rotate PATs on a schedule** | 7-30 day expiry for development tokens | [PAT management](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth/pat) |
+| **Audit API access** | Enable Databricks audit logging to track who called what | [Audit logging](https://learn.microsoft.com/en-us/azure/databricks/admin/account-settings/audit-logs) |
+| **Never commit credentials** | Add `.env`, `~/.databrickscfg` to `.gitignore` | — |
