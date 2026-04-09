@@ -13,7 +13,7 @@ import {
 } from "../src/index.ts";
 
 const client = new DatabricksWorkspaceClient();
-const job_name = 'jb_test_postgres'
+const job_name = 'jb_send_email_job_notification'
 // Fire-and-forget by exact name
 try {
 

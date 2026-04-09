@@ -4,7 +4,6 @@ import com.databricks.client.exceptions.*;
 import com.databricks.client.models.JobInfo;
 import com.databricks.client.models.RunResult;
 import com.databricks.client.models.RunStatus;
-import com.databricks.sdk.WorkspaceClient;
 import com.databricks.sdk.core.error.platform.NotFound;
 import com.databricks.sdk.core.error.platform.PermissionDenied;
 import com.databricks.sdk.service.jobs.*;
@@ -22,10 +21,10 @@ import java.util.stream.StreamSupport;
 public class JobsClient {
 
     private static final Logger LOG = Logger.getLogger(JobsClient.class.getName());
-    private final WorkspaceClient ws;
+    private final JobsAPI jobsApi;
 
-    public JobsClient(WorkspaceClient ws) {
-        this.ws = ws;
+    public JobsClient(JobsAPI jobsApi) {
+        this.jobsApi = jobsApi;
     }
 
     // ─── Mappers ──────────────────────────────────────────────────
@@ -72,7 +71,7 @@ public class JobsClient {
             var request = new ListJobsRequest().setExpandTasks(expandTasks);
             if (name != null) request.setName(name);
 
-            Iterable<BaseJob> iterable = ws.jobs().list(request);
+            Iterable<BaseJob> iterable = jobsApi.list(request);
             var jobs = StreamSupport.stream(iterable.spliterator(), false)
                     .map(JobsClient::mapJob)
                     .collect(Collectors.toList());
@@ -106,8 +105,8 @@ public class JobsClient {
                 if (params.sqlParams() != null) request.setSqlParams(params.sqlParams());
                 if (params.idempotencyToken() != null) request.setIdempotencyToken(params.idempotencyToken());
             }
-            var wait = ws.jobs().runNow(request);
-            return wait.getRunId();
+            var wait = jobsApi.runNow(request);
+            return wait.getResponse().getRunId();
         } catch (NotFound e) {
             throw new ResourceNotFoundException(
                     "Job " + jobId + " not found: " + e.getMessage(),
@@ -129,7 +128,7 @@ public class JobsClient {
 
     public RunStatus getRunStatus(long runId) {
         try {
-            Run run = ws.jobs().getRun(new GetRunRequest().setRunId(runId));
+            Run run = jobsApi.getRun(new GetRunRequest().setRunId(runId));
             return mapRunStatus(run);
         } catch (NotFound e) {
             throw new ResourceNotFoundException(
@@ -142,7 +141,7 @@ public class JobsClient {
 
     public RunResult getRunResult(long runId) {
         try {
-            Run run = ws.jobs().getRun(new GetRunRequest().setRunId(runId));
+            Run run = jobsApi.getRun(new GetRunRequest().setRunId(runId));
             return mapRunResult(run);
         } catch (NotFound e) {
             throw new ResourceNotFoundException(
@@ -167,7 +166,7 @@ public class JobsClient {
                 if (params.idempotencyToken() != null) request.setIdempotencyToken(params.idempotencyToken());
             }
 
-            var wait = ws.jobs().runNow(request);
+            var wait = jobsApi.runNow(request);
             Run completedRun;
             if (timeout != null) {
                 completedRun = wait.get(timeout);

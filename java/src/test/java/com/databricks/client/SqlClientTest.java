@@ -1,7 +1,6 @@
 package com.databricks.client;
 
 import com.databricks.client.exceptions.QueryExecutionException;
-import com.databricks.sdk.WorkspaceClient;
 import com.databricks.sdk.service.sql.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,29 +20,28 @@ import static org.mockito.Mockito.*;
 class SqlClientTest {
 
     @Mock
-    private WorkspaceClient ws;
-    @Mock
     private StatementExecutionAPI stmtApi;
 
     private SqlClient client;
 
     @BeforeEach
     void setUp() {
-        when(ws.statementExecution()).thenReturn(stmtApi);
-        client = new SqlClient(ws);
+        client = new SqlClient(stmtApi);
     }
 
-    private static StatementResponse makeResponse(String stmtId, List<List<String>> rows,
+    @SuppressWarnings("unchecked")
+    private static StatementResponse makeResponse(String stmtId,
+                                                    Collection<? extends Collection<String>> rows,
                                                     int totalChunks, long totalRows) {
-        var col1 = new ColumnInfo().setName("id").setTypeName(ColumnInfoTypeName.INT).setPosition(0);
-        var col2 = new ColumnInfo().setName("name").setTypeName(ColumnInfoTypeName.STRING).setPosition(1);
+        var col1 = new ColumnInfo().setName("id").setTypeName(ColumnInfoTypeName.INT).setPosition(0L);
+        var col2 = new ColumnInfo().setName("name").setTypeName(ColumnInfoTypeName.STRING).setPosition(1L);
         var schema = new ResultSchema().setColumns(List.of(col1, col2));
         var manifest = new ResultManifest()
                 .setSchema(schema)
                 .setTotalChunkCount((long) totalChunks)
                 .setTotalRowCount(totalRows)
                 .setTruncated(false);
-        var result = new ResultData().setDataArray(rows);
+        var result = new ResultData().setDataArray((Collection) rows);
         var status = new StatementStatus().setState(StatementState.SUCCEEDED);
         return new StatementResponse()
                 .setStatementId(stmtId)
@@ -53,7 +52,7 @@ class SqlClientTest {
 
     @Test
     void singleChunk() {
-        var rows = List.of(List.of("1", "alice"), List.of("2", "bob"));
+        List<List<String>> rows = List.of(List.of("1", "alice"), List.of("2", "bob"));
         when(stmtApi.executeStatement(any(ExecuteStatementRequest.class)))
                 .thenReturn(makeResponse("stmt-1", rows, 1, 2));
 
@@ -65,14 +64,15 @@ class SqlClientTest {
         assertEquals(List.of("1", "alice"), result.rows().get(0));
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     void multiChunkPagination() {
-        var firstRows = new ArrayList<>(List.of(List.of("1", "a"), List.of("2", "b")));
+        List<List<String>> firstRows = new ArrayList<>(List.of(List.of("1", "a"), List.of("2", "b")));
         when(stmtApi.executeStatement(any(ExecuteStatementRequest.class)))
                 .thenReturn(makeResponse("stmt-1", firstRows, 3, 5));
 
-        var chunk2 = new ResultData().setDataArray(List.of(List.of("3", "c"), List.of("4", "d")));
-        var chunk3 = new ResultData().setDataArray(List.of(List.of("5", "e")));
+        var chunk2 = new ResultData().setDataArray((Collection) List.of(List.of("3", "c"), List.of("4", "d")));
+        var chunk3 = new ResultData().setDataArray((Collection) List.of(List.of("5", "e")));
         when(stmtApi.getStatementResultChunkN(any(GetStatementResultChunkNRequest.class)))
                 .thenReturn(chunk2)
                 .thenReturn(chunk3);
@@ -92,7 +92,7 @@ class SqlClientTest {
 
     @Test
     void failedStatement() {
-        var error = new StatementStatusError().setMessage("syntax error");
+        var error = new ServiceError().setMessage("syntax error");
         var status = new StatementStatus().setState(StatementState.FAILED).setError(error);
         var response = new StatementResponse()
                 .setStatementId("s1")
@@ -103,12 +103,13 @@ class SqlClientTest {
         assertTrue(ex.getMessage().contains("syntax error"));
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     void lazyYieldsChunks() {
-        var firstRows = new ArrayList<>(List.of(List.of("1")));
+        List<List<String>> firstRows = new ArrayList<>(List.of(List.of("1")));
         when(stmtApi.executeStatement(any(ExecuteStatementRequest.class)))
                 .thenReturn(makeResponse("s1", firstRows, 2, 2));
-        var chunk2 = new ResultData().setDataArray(List.of(List.of("2")));
+        var chunk2 = new ResultData().setDataArray((Collection) List.of(List.of("2")));
         when(stmtApi.getStatementResultChunkN(any(GetStatementResultChunkNRequest.class))).thenReturn(chunk2);
 
         var iter = client.executeQueryLazy("SELECT x", "wh-1");

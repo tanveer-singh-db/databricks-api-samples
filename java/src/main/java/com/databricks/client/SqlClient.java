@@ -3,7 +3,6 @@ package com.databricks.client;
 import com.databricks.client.exceptions.QueryExecutionException;
 import com.databricks.client.models.ColumnInfo;
 import com.databricks.client.models.QueryResult;
-import com.databricks.sdk.WorkspaceClient;
 import com.databricks.sdk.service.sql.*;
 
 import java.util.*;
@@ -14,10 +13,10 @@ import java.util.stream.Collectors;
  */
 public class SqlClient {
 
-    private final WorkspaceClient ws;
+    private final StatementExecutionAPI stmtApi;
 
-    public SqlClient(WorkspaceClient ws) {
-        this.ws = ws;
+    public SqlClient(StatementExecutionAPI stmtApi) {
+        this.stmtApi = stmtApi;
     }
 
     // ─── Helpers ──────────────────────────────────────────────────
@@ -27,7 +26,7 @@ public class SqlClient {
                 || response.getManifest().getSchema().getColumns() == null) {
             return List.of();
         }
-        var columns = response.getManifest().getSchema().getColumns();
+        var columns = new ArrayList<>(response.getManifest().getSchema().getColumns());
         var result = new ArrayList<ColumnInfo>();
         for (int i = 0; i < columns.size(); i++) {
             var col = columns.get(i);
@@ -40,11 +39,18 @@ public class SqlClient {
         return result;
     }
 
+    private static List<List<String>> convertRows(Collection<? extends Collection<String>> dataArray) {
+        if (dataArray == null) return new ArrayList<>();
+        return dataArray.stream()
+                .map(row -> new ArrayList<>(row))
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
     private static List<List<String>> extractRows(StatementResponse response) {
         if (response.getResult() == null || response.getResult().getDataArray() == null) {
             return new ArrayList<>();
         }
-        return new ArrayList<>(response.getResult().getDataArray());
+        return convertRows(response.getResult().getDataArray());
     }
 
     // ─── Public API ───────────────────────────────────────────────
@@ -60,14 +66,14 @@ public class SqlClient {
                 ? response.getManifest().getTotalChunkCount().intValue() : 1;
 
         if (totalChunks > 1 && response.getStatementId() != null) {
-            for (int i = 1; i < totalChunks; i++) {
-                var chunk = ws.statementExecution().getStatementResultChunkN(
+            for (long i = 1; i < totalChunks; i++) {
+                var chunk = stmtApi.getStatementResultChunkN(
                         new GetStatementResultChunkNRequest()
                                 .setStatementId(response.getStatementId())
                                 .setChunkIndex(i)
                 );
                 if (chunk.getDataArray() != null) {
-                    allRows.addAll(chunk.getDataArray());
+                    allRows.addAll(convertRows(chunk.getDataArray()));
                 }
             }
         }
@@ -118,13 +124,13 @@ public class SqlClient {
                 if (nextChunk >= total) {
                     throw new NoSuchElementException();
                 }
-                var chunk = ws.statementExecution().getStatementResultChunkN(
+                var chunk = stmtApi.getStatementResultChunkN(
                         new GetStatementResultChunkNRequest()
                                 .setStatementId(statementId)
-                                .setChunkIndex(nextChunk)
+                                .setChunkIndex((long) nextChunk)
                 );
                 nextChunk++;
-                return chunk.getDataArray() != null ? chunk.getDataArray() : List.of();
+                return chunk.getDataArray() != null ? convertRows(chunk.getDataArray()) : List.of();
             }
         };
     }
@@ -162,7 +168,7 @@ public class SqlClient {
 
         StatementResponse response;
         try {
-            response = ws.statementExecution().executeStatement(request);
+            response = stmtApi.executeStatement(request);
         } catch (Exception e) {
             throw new QueryExecutionException(
                     "Failed to execute SQL statement: " + e.getMessage(),

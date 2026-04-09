@@ -2,12 +2,11 @@ package com.databricks.client;
 
 import com.databricks.client.exceptions.*;
 import com.databricks.client.models.RunResult;
-import com.databricks.sdk.WorkspaceClient;
 import com.databricks.sdk.core.error.platform.NotFound;
 import com.databricks.sdk.core.error.platform.PermissionDenied;
-import com.databricks.sdk.mixin.JobsExt;
 import com.databricks.sdk.service.jobs.*;
 import com.databricks.sdk.support.Wait;
+import com.databricks.sdk.support.WaitStarter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -27,16 +25,13 @@ import static org.mockito.Mockito.*;
 class JobsClientTest {
 
     @Mock
-    private WorkspaceClient ws;
-    @Mock
-    private JobsExt jobsApi;
+    private JobsAPI jobsApi;
 
     private JobsClient client;
 
     @BeforeEach
     void setUp() {
-        when(ws.jobs()).thenReturn(jobsApi);
-        client = new JobsClient(ws);
+        client = new JobsClient(jobsApi);
     }
 
     private static BaseJob makeBaseJob(long jobId, String name) {
@@ -54,6 +49,12 @@ class JobsClientTest {
         return new Run().setRunId(runId).setState(state)
                 .setStartTime(1700000000L).setEndTime(1700000060L)
                 .setExecutionDuration(60000L).setRunPageUrl("https://ws.com/runs/" + runId);
+    }
+
+    private Wait<Run, RunNowResponse> createWait(long runId) {
+        var response = new RunNowResponse().setRunId(runId);
+        WaitStarter<Run> starter = (duration, callback) -> makeRun(runId, "TERMINATED", "SUCCESS");
+        return new Wait<>(starter, response);
     }
 
     @Nested
@@ -81,23 +82,20 @@ class JobsClientTest {
     class TriggerTests {
         @Test
         void returnsRunId() {
-            var wait = mock(Wait.class);
-            when(wait.getRunId()).thenReturn(42L);
-            when(jobsApi.runNow(any(RunNow.class))).thenReturn(wait);
-
+            when(jobsApi.runNow(any(RunNow.class))).thenReturn(createWait(42));
             long runId = client.trigger(123, TriggerParams.builder().jobParameters(Map.of("env", "prod")).build());
             assertEquals(42, runId);
         }
 
         @Test
         void notFoundThrows() {
-            when(jobsApi.runNow(any(RunNow.class))).thenThrow(new NotFound("not found"));
+            when(jobsApi.runNow(any(RunNow.class))).thenThrow(new NotFound("not found", null));
             assertThrows(ResourceNotFoundException.class, () -> client.trigger(999));
         }
 
         @Test
         void permissionDeniedThrows() {
-            when(jobsApi.runNow(any(RunNow.class))).thenThrow(new PermissionDenied("denied"));
+            when(jobsApi.runNow(any(RunNow.class))).thenThrow(new PermissionDenied("denied", null));
             assertThrows(PermissionDeniedException.class, () -> client.trigger(1));
         }
     }
@@ -126,8 +124,7 @@ class JobsClientTest {
     class ResolveJobTests {
         @Test
         void resolveByJobId() {
-            long id = client.resolveJob(42L, null);
-            assertEquals(42, id);
+            assertEquals(42, client.resolveJob(42L, null));
         }
 
         @Test
@@ -140,7 +137,7 @@ class JobsClientTest {
         @Test
         void resolvePartialMatch() {
             when(jobsApi.list(any(ListJobsRequest.class)))
-                    .thenReturn(List.of())  // exact match empty
+                    .thenReturn(List.of())
                     .thenReturn(List.of(makeBaseJob(1, "other"), makeBaseJob(2, "my-etl-pipeline")));
             assertEquals(2, client.resolveJob(null, "etl"));
         }
@@ -173,9 +170,7 @@ class JobsClientTest {
         void fireAndForget() {
             when(jobsApi.list(any(ListJobsRequest.class)))
                     .thenReturn(List.of(makeBaseJob(10, "my-job")));
-            var wait = mock(Wait.class);
-            when(wait.getRunId()).thenReturn(42L);
-            when(jobsApi.runNow(any(RunNow.class))).thenReturn(wait);
+            when(jobsApi.runNow(any(RunNow.class))).thenReturn(createWait(42));
             when(jobsApi.getRun(any(GetRunRequest.class))).thenReturn(makeRun(42, "PENDING", null));
 
             RunResult result = client.findAndTrigger(null, "my-job", null, false);
@@ -185,9 +180,7 @@ class JobsClientTest {
 
         @Test
         void byJobId() {
-            var wait = mock(Wait.class);
-            when(wait.getRunId()).thenReturn(77L);
-            when(jobsApi.runNow(any(RunNow.class))).thenReturn(wait);
+            when(jobsApi.runNow(any(RunNow.class))).thenReturn(createWait(77));
             when(jobsApi.getRun(any(GetRunRequest.class))).thenReturn(makeRun(77, "PENDING", null));
 
             RunResult result = client.findAndTrigger(10L, null, null, false);

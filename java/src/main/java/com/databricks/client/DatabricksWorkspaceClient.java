@@ -50,8 +50,8 @@ public class DatabricksWorkspaceClient {
             }
             throw e;
         }
-        this.jobs = new JobsClient(ws);
-        this.sql = new SqlClient(ws);
+        this.jobs = new JobsClient(ws.jobs());
+        this.sql = new SqlClient(ws.statementExecution());
     }
 
     public JobsClient jobs() {
