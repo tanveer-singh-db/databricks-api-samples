@@ -1,0 +1,31 @@
+{
+  "name": "databricks-workspace-client",
+  "version": "0.1.0",
+  "description": "Zero-dependency Databricks Workspace Client for Node.js",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "node --experimental-strip-types --no-warnings --test tests/*.test.ts",
+    "lint": "tsc --noEmit"
+  },
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "~5.7.0"
+  }
+}
