@@ -35,6 +35,19 @@ for (const row of result.rows) {
 }
 ```
 
+**Java:**
+```java
+import com.databricks.client.DatabricksWorkspaceClient;
+var client = new DatabricksWorkspaceClient();
+
+var result = client.sql().executeQuery(
+    "SELECT * FROM samples.nyctaxi.trips LIMIT 100", "abc123def456"
+);
+for (var row : result.rows()) {
+    System.out.println(row);
+}
+```
+
 `QueryResult` fields:
 - `statement_id` — unique statement identifier
 - `columns` — list of `ColumnInfo(name, type_name, position)`
@@ -108,6 +121,17 @@ for await (const chunk of client.sql.executeQueryLazy(
 }
 ```
 
+**Java** (Iterator):
+```java
+var iter = client.sql().executeQueryLazy("SELECT * FROM large_table", "abc123def456");
+while (iter.hasNext()) {
+    var chunk = iter.next();
+    for (var row : chunk) {
+        process(row);
+    }
+}
+```
+
 Each iteration yields one chunk of rows. Only one chunk is held in memory at a time.
 
 ## Error Handling
@@ -146,3 +170,4 @@ Under the hood, the client uses the Databricks [Statement Execution API](https:/
 - [SQL execution tutorial](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/sql-execution-tutorial)
 - [SQL warehouses overview](https://learn.microsoft.com/en-us/azure/databricks/sql/admin/sql-endpoints)
 - [Databricks SDK for Python — Statement Execution](https://databricks-sdk-py.readthedocs.io/en/latest/workspace/sql/statement_execution.html)
+- [Databricks SDK for Java](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/sdk-java)

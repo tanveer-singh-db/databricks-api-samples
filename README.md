@@ -8,7 +8,7 @@ Multi-language sample implementations of a Databricks Workspace Client.
 |----------|--------|-----------|----------|
 | Python | Available | [`python/`](python/) | Wraps official `databricks-sdk` |
 | Node.js | Available | [`nodejs/`](nodejs/) | Direct REST API, zero runtime deps |
-| Java | Planned | `java/` | Will wrap official `databricks-sdk-java` |
+| Java | Available | [`java/`](java/) | Wraps official `databricks-sdk-java` |
 
 ## Features
 
@@ -52,10 +52,26 @@ const result = await client.sql.executeQuery("SELECT 1", "warehouse-id");
 
 > The Node.js implementation uses **zero runtime dependencies** — all HTTP calls use the built-in `fetch()` API.
 
+### Java
+
+```bash
+cd java/
+mvn compile
+```
+
+```java
+import com.databricks.client.DatabricksWorkspaceClient;
+
+var client = new DatabricksWorkspaceClient(); // Uses env vars or .databrickscfg
+
+var jobs = client.jobs().listJobs("etl", false, 10);
+var result = client.sql().executeQuery("SELECT 1", "warehouse-id");
+```
+
 ## Documentation
 
 **Guides** (cross-language):
-- [Authentication Guide](docs/authentication.md) — all auth methods with Python + Node.js examples
+- [Authentication Guide](docs/authentication.md) — all auth methods with Python, Node.js, and Java examples
 - [Deployment Patterns](docs/deployment-patterns.md) — which auth to use for Azure apps, on-prem, notebooks, and more
 - [Jobs API Guide](docs/jobs-api.md) — job operations
 - [SQL Execution Guide](docs/sql-api.md) — query execution with pagination
@@ -63,6 +79,7 @@ const result = await client.sql.executeQuery("SELECT 1", "warehouse-id");
 **Language-specific**:
 - [Python README](python/README.md)
 - [Node.js README](nodejs/README.md)
+- [Java README](java/README.md)
 
 ## Architecture
 
@@ -72,7 +89,7 @@ Each language implementation follows the same facade pattern:
 DatabricksWorkspaceClient
 ├── .jobs  → JobsClient   (list, trigger, poll, wait, findAndTrigger)
 ├── .sql   → SqlClient    (execute, lazy iterate)
-└── .workspace_client      (escape hatch to raw SDK, Python only)
+└── .workspaceClient()     (escape hatch to raw SDK, Python + Java)
 ```
 
 The public API shape, model definitions, and error hierarchy are consistent across languages.

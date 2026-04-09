@@ -59,7 +59,7 @@ Python delegates HTTP and config parsing to `databricks-sdk`. Node.js implements
 |----------|------|----------------|---------------|
 | Python | `databricks-sdk` handles it | `databricks-sdk` unified auth | `databricks-sdk` handles it |
 | Node.js | Built-in `fetch()` via `HttpClient` class | Custom chain in `auth.ts` | Custom INI parser in `config-parser.ts` |
-| Java (planned) | `databricks-sdk-java` handles it | `databricks-sdk-java` unified auth | `databricks-sdk-java` handles it |
+| Java | `databricks-sdk-java` handles it | `databricks-sdk-java` unified auth | `databricks-sdk-java` handles it |
 
 Node.js `HttpClient` features:
 - Bearer token auth via `TokenProvider.getToken()`
@@ -255,13 +255,13 @@ Request parameters: `disposition=INLINE`, `format=JSON_ARRAY`, `wait_timeout=50s
 
 ## 8. Testing Strategy
 
-| Aspect | Python | Node.js |
-|--------|--------|---------|
-| Framework | pytest + pytest-mock | node:test + node:assert |
-| Mocking target | `WorkspaceClient` (SDK) | `IHttpClient` (interface) |
-| External deps needed | None (all mocked) | None (all mocked) |
-| Test location | `python/tests/` | `nodejs/tests/` |
-| Run command | `pytest -v` | `npm test` |
+| Aspect | Python | Node.js | Java |
+|--------|--------|---------|------|
+| Framework | pytest + pytest-mock | node:test + node:assert | JUnit 5 + Mockito |
+| Mocking target | `WorkspaceClient` (SDK) | `IHttpClient` (interface) | `WorkspaceClient` (SDK) |
+| External deps needed | None (all mocked) | None (all mocked) | None (all mocked) |
+| Test location | `python/tests/` | `nodejs/tests/` | `java/src/test/` |
+| Run command | `pytest -v` | `npm test` | `mvn test` |
 
 Both test suites cover:
 - Auth config resolution and error wrapping
@@ -349,26 +349,16 @@ Update `__init__.py` / `index.ts` with new public types.
 ### Step 8: Update CLAUDE.md
 Add the new models to the cross-language contract table and the new client to the architecture diagram.
 
-## 10. Adding Java
+## 10. Java Implementation Notes
 
-```
-java/
-├── pom.xml                        # Maven, com.databricks:databricks-sdk-java
-├── src/main/java/com/example/databricks/
-│   ├── DatabricksWorkspaceClient.java  # Facade
-│   ├── AuthConfig.java                 # Config POJO or record
-│   ├── JobsClient.java
-│   ├── SqlClient.java
-│   ├── models/                         # Records: JobInfo, RunStatus, etc.
-│   └── exceptions/                     # DatabricksClientException hierarchy
-├── src/test/java/com/example/databricks/
-│   ├── JobsClientTest.java             # JUnit 5, mock SDK WorkspaceClient
-│   └── SqlClientTest.java
-└── examples/
-```
+The Java implementation is complete at `java/`. Key specifics:
 
-Java should follow the same patterns:
-- Wrap `databricks-sdk-java` (same approach as Python)
-- Java records for immutable models (Java 16+) or POJOs
-- Same method names in camelCase: `listJobs()`, `trigger()`, `triggerAndWait()`
-- JUnit 5 + Mockito for testing
+- **Package**: `com.databricks.client` with sub-packages `models` and `exceptions`
+- **SDK**: `com.databricks:databricks-sdk-java:0.79.0` (wraps SDK, same as Python)
+- **Java 17+**: Uses records for models, `var` for local variables, text blocks
+- **AuthConfig**: Fluent builder pattern — `new AuthConfig().setHost(...).setToken(...)`
+- **Domain clients via methods**: `client.jobs()`, `client.sql()` (not fields like Python/Node.js)
+- **TriggerParams / SqlQueryOptions**: Builder records for type-safe parameter construction
+- **Wait pattern**: Uses SDK's `Wait.get(Duration)` for blocking triggerAndWait
+- **Lazy SQL**: Returns `Iterator<List<List<String>>>` (Java equivalent of Python's Iterator)
+- **Tests**: JUnit 5 + Mockito, mock `WorkspaceClient` and `JobsExt`/`StatementExecutionAPI`

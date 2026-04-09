@@ -8,7 +8,7 @@ Multi-language Databricks Workspace Client library. Each language provides the *
 |----------|--------|-------------|--------------|
 | Python | Complete | Wraps `databricks-sdk` | `databricks-sdk` |
 | Node.js | Complete | Direct REST API + built-in `fetch()` | **Zero** |
-| Java | Planned | Will wrap `databricks-sdk-java` | TBD |
+| Java | Complete | Wraps `databricks-sdk-java` | `databricks-sdk-java` |
 
 ## Architecture
 
@@ -30,17 +30,19 @@ DatabricksWorkspaceClient (facade)
 
 Models are immutable and consistent across implementations:
 
-| Model | Python fields (snake_case) | Node.js fields (camelCase) |
-|-------|---------------------------|---------------------------|
+| Model | Python (snake_case) | Node.js / Java (camelCase) |
+|-------|---------------------|---------------------------|
 | JobInfo | job_id, name, created_time, creator, tags | jobId, name, createdTime, creator, tags |
 | RunStatus | run_id, life_cycle_state, result_state, state_message | runId, lifecycleState, resultState, stateMessage |
 | RunResult | + start_time, end_time, run_duration, run_page_url | + startTime, endTime, runDuration, runPageUrl |
 | ColumnInfo | name, type_name, position | name, typeName, position |
 | QueryResult | statement_id, columns, rows, total_row_count, total_chunk_count, truncated | statementId, columns, rows, totalRowCount, totalChunkCount, truncated |
 
-Computed properties: `is_terminal`/`isTerminal`, `is_success`/`isSuccess`
+Computed properties: `is_terminal`/`isTerminal()`, `is_success`/`isSuccess()`
 
-### Exception Hierarchy (identical in both languages)
+Java models use records (immutable by default). Node.js uses `Object.freeze()`. Python uses `@dataclass(frozen=True)`.
+
+### Exception Hierarchy (identical in all three languages)
 ```
 DatabricksClientError (base)
 ├── AuthenticationError
@@ -90,7 +92,19 @@ All exceptions carry a `details` dict/object and chain the original error.
 │   │   └── exceptions.ts    # Error hierarchy
 │   ├── tests/               # node:test + node:assert
 │   └── examples/            # Runnable scripts
-└── java/                    # (future)
+├── java/
+│   ├── pom.xml              # Java 17+, Maven, databricks-sdk-java
+│   ├── src/main/java/com/databricks/client/
+│   │   ├── DatabricksWorkspaceClient.java  # Facade
+│   │   ├── AuthConfig.java                 # Config builder
+│   │   ├── JobsClient.java                 # JobsClient (wraps SDK)
+│   │   ├── SqlClient.java                  # SqlClient (wraps SDK)
+│   │   ├── TriggerParams.java              # Job trigger parameter record
+│   │   ├── SqlQueryOptions.java            # SQL query options record
+│   │   ├── models/          # Java records (JobInfo, RunStatus, etc.)
+│   │   └── exceptions/      # Exception hierarchy
+│   ├── src/test/java/       # JUnit 5 + Mockito
+│   └── examples/            # Runnable example classes
 ```
 
 ## Commands
@@ -113,11 +127,20 @@ npm test                   # Run 79 tests (node:test)
 npm run lint               # Type check (tsc --noEmit)
 ```
 
+### Java
+```bash
+cd java/
+mvn compile                # Compile
+mvn test                   # Run tests (JUnit 5 + Mockito)
+mvn package -DskipTests    # Build JAR
+```
+
 ### Run examples
 ```bash
 # Requires DATABRICKS_HOST + auth (env vars or ~/.databrickscfg)
 python python/examples/list_jobs.py
 node --experimental-strip-types nodejs/examples/list-jobs.ts
+cd java/ && mvn exec:java -Dexec.mainClass="ListJobsExample" -Dexec.sourceRoot="examples"
 ```
 
 ## Key Conventions
@@ -125,18 +148,19 @@ node --experimental-strip-types nodejs/examples/list-jobs.ts
 ### When adding a new feature or API wrapper:
 1. **Start with models.py / models.ts** — define the cross-language data contract first
 2. **Add exceptions if needed** — keep the hierarchy consistent across languages
-3. **Implement in Python first** (simpler, SDK does heavy lifting), then mirror in Node.js
+3. **Implement in Python first** (simpler, SDK does heavy lifting), then mirror in Node.js and Java
 4. **Node.js must use zero runtime deps** — only built-in `fetch()`, `node:fs`, `node:child_process`
 5. **Node.js avoids TS parameter properties** — use explicit field declarations (required by `--experimental-strip-types`)
 6. **Update the facade** — wire new client into `DatabricksWorkspaceClient`
-7. **Write tests in both languages** — Python mocks `WorkspaceClient`, Node.js mocks `IHttpClient`
+7. **Write tests in all three languages** — Python mocks `WorkspaceClient`, Node.js mocks `IHttpClient`, Java mocks `WorkspaceClient` with Mockito
 8. **Update docs/** — add examples for both languages side-by-side
 9. **Update this CLAUDE.md** — add the new models/methods to the contract tables
 
 ### Naming conventions:
 - Python: `snake_case` for everything
 - Node.js: `camelCase` for fields/methods, `PascalCase` for classes
-- REST API uses `snake_case` — Node.js has explicit mapper functions at the boundary
+- Java: `camelCase` for fields/methods, `PascalCase` for classes, accessor methods on records (e.g., `result.runId()`)
+- REST API uses `snake_case` — Node.js and Java have explicit mapper functions at the boundary
 
 ### REST API endpoints (Node.js needs these, Python SDK abstracts them):
 - List jobs: `GET /api/2.1/jobs/list`
@@ -167,12 +191,12 @@ Node.js implementation uses **zero third-party runtime dependencies** by design 
 5. 1 match → use that job_id
 6. >1 matches → `AmbiguousJobError` (lists all matches with IDs)
 
-## Adding Java (future)
+## Java Implementation Notes
 
-Follow the same pattern:
-1. `java/` directory with Maven `pom.xml`
-2. Wrap `com.databricks:databricks-sdk-java` (similar to Python approach)
-3. Same facade: `DatabricksWorkspaceClient` with `.jobs()` and `.sql()` accessors
-4. Same model names (Java records or POJOs): `JobInfo`, `RunStatus`, `RunResult`, `ColumnInfo`, `QueryResult`
-5. Same exception hierarchy extending a base `DatabricksClientException`
-6. Tests with JUnit 5, mock the SDK `WorkspaceClient`
+- Wraps `com.databricks:databricks-sdk-java:0.79.0` (same approach as Python)
+- Models use Java 17 records (immutable by default)
+- `AuthConfig` uses fluent setter pattern: `new AuthConfig().setHost(...).setToken(...)`
+- Domain clients accessed via methods: `client.jobs()`, `client.sql()` (not fields)
+- `triggerAndWait` uses SDK's `Wait.get(Duration)` for blocking with timeout
+- `resolveJob` and `findAndTrigger` have the same exact/partial match logic as Python/Node.js
+- Tests use JUnit 5 + Mockito, mock the SDK `WorkspaceClient`

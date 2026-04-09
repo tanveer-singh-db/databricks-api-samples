@@ -28,6 +28,16 @@ const etlJobs = await client.jobs.listJobs({ name: "etl-daily" });
 const firstFive = await client.jobs.listJobs({ limit: 5 });
 ```
 
+**Java:**
+```java
+import com.databricks.client.DatabricksWorkspaceClient;
+var client = new DatabricksWorkspaceClient();
+
+var allJobs = client.jobs().listJobs();
+var etlJobs = client.jobs().listJobs("etl-daily", false, null);
+var firstFive = client.jobs().listJobs(null, false, 5);
+```
+
 Each job is returned as a `JobInfo` with fields: `jobId`/`job_id`, `name`, `createdTime`/`created_time`, `creator`, `tags`.
 
 ## Trigger a Job
@@ -42,6 +52,11 @@ run_id = client.jobs.trigger(job_id=123, notebook_params={"env": "prod"})
 **Node.js:**
 ```typescript
 const runId = await client.jobs.trigger(123, { notebookParams: { env: "prod" } });
+```
+
+**Java:**
+```java
+long runId = client.jobs().trigger(123, TriggerParams.builder().jobParameters(Map.of("env", "prod")).build());
 ```
 
 Supported parameter types (see [Run Now parameters](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/jobs/runnow#request)):
@@ -98,6 +113,15 @@ const result = await client.jobs.triggerAndWait(123, {
 });
 ```
 
+**Java:**
+```java
+var result = client.jobs().triggerAndWait(123,
+    TriggerParams.builder().jobParameters(Map.of("env", "prod")).build(),
+    Duration.ofMinutes(30),
+    status -> System.out.printf("  %s: %s%n", status.lifecycleState(), status.stateMessage())
+);
+```
+
 This method:
 - Polls periodically until a terminal state is reached
 - Raises/throws `OperationTimeoutError` if the timeout is exceeded
@@ -141,6 +165,20 @@ const result = await client.jobs.findAndTrigger({
 
 // By job_id (skips name resolution)
 const result = await client.jobs.findAndTrigger({ jobId: 123, wait: true });
+```
+
+**Java:**
+```java
+// By exact name, fire-and-forget
+var result = client.jobs().findAndTrigger(null, "etl-daily",
+    TriggerParams.builder().jobParameters(Map.of("env", "prod")).build(), false);
+
+// By partial name, wait for completion
+var result = client.jobs().findAndTrigger(null, "etl", null, true,
+    Duration.ofMinutes(30), null);
+
+// By jobId (skips name resolution)
+var result = client.jobs().findAndTrigger(123L, null, null, true);
 ```
 
 **Resolution order:** exact name match (API-side) → partial substring match (client-side).
@@ -190,3 +228,4 @@ See [Run lifecycle](https://learn.microsoft.com/en-us/azure/databricks/api/works
 - [Create and manage Databricks jobs](https://learn.microsoft.com/en-us/azure/databricks/jobs)
 - [Jobs API 2.1 reference](https://learn.microsoft.com/en-us/azure/databricks/api/workspace/jobs)
 - [Databricks SDK for Python — Jobs](https://databricks-sdk-py.readthedocs.io/en/latest/workspace/jobs/jobs.html)
+- [Databricks SDK for Java](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/sdk-java)

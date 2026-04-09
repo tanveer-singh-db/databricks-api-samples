@@ -25,6 +25,12 @@ import { DatabricksWorkspaceClient } from "databricks-workspace-client";
 const client = new DatabricksWorkspaceClient(); // Picks up env vars automatically
 ```
 
+**Java:**
+```java
+import com.databricks.client.DatabricksWorkspaceClient;
+var client = new DatabricksWorkspaceClient(); // Picks up env vars automatically
+```
+
 ## Authentication Methods
 
 ### Personal Access Token (PAT)
@@ -46,6 +52,13 @@ const client = new DatabricksWorkspaceClient({
   host: "https://your-workspace.cloud.databricks.com",
   token: "dapi...",
 });
+```
+
+**Java:**
+```java
+var client = new DatabricksWorkspaceClient(
+    new AuthConfig().setHost("https://your-workspace.cloud.databricks.com").setToken("dapi...")
+);
 ```
 
 **Environment variables**: `DATABRICKS_HOST`, `DATABRICKS_TOKEN`
@@ -70,6 +83,15 @@ const client = new DatabricksWorkspaceClient({
   clientId: "<service-principal-application-id>",
   clientSecret: "<service-principal-secret>",
 });
+```
+
+**Java:**
+```java
+var client = new DatabricksWorkspaceClient(
+    new AuthConfig().setHost("https://your-workspace.cloud.databricks.com")
+        .setClientId("<service-principal-application-id>")
+        .setClientSecret("<service-principal-secret>")
+);
 ```
 
 **Environment variables**: `DATABRICKS_HOST`, `DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET`
@@ -98,6 +120,16 @@ const client = new DatabricksWorkspaceClient({
 });
 ```
 
+**Java:**
+```java
+var client = new DatabricksWorkspaceClient(
+    new AuthConfig().setHost("https://adb-123456789.12.azuredatabricks.net")
+        .setAzureClientId("<application-id>")
+        .setAzureClientSecret("<client-secret>")
+        .setAzureTenantId("<tenant-id>")
+);
+```
+
 **Environment variables**: `DATABRICKS_HOST`, `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_TENANT_ID`
 
 ### Azure CLI
@@ -122,6 +154,13 @@ const client = new DatabricksWorkspaceClient({
   host: "https://adb-123456789.12.azuredatabricks.net",
   authType: "azure-cli",
 });
+```
+
+**Java:**
+```java
+var client = new DatabricksWorkspaceClient(
+    new AuthConfig().setHost("https://adb-123456789.12.azuredatabricks.net").setAuthType("azure-cli")
+);
 ```
 
 ### Azure Managed Identity
